@@ -1,22 +1,13 @@
-
 {
-  "name": "Belote / belote-joueurs-3",
-  "short_name": "Belote",
-  "description": "Application de comptage de points pour la Belote à 3 joueurs",
-  "start_url": "index.html",
+  "name": "Belote Expert 3P",
+  "short_name": "Belote3P",
+  "start_url": ".",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#2E8B57",
-  "theme_color": "#3CB371",
+  "background_color": "#8f8d91",
+  "theme_color": "#8f8d91",
   "icons": [
     {
-      "src": "icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "icons/icon-512.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/1011/1011652.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
