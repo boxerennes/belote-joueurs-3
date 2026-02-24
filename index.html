@@ -4,17 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Belote Expert 3P</title>
+    
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        :root { --sat: env(safe-area-inset-top); --sab: env(safe-area-inset-bottom); }
-        body { height: 100dvh; background-color: #8f8d91; }
-        .main-container { height: 100dvh; padding-top: var(--sat); padding-bottom: var(--sab); background-color: #8f8d91; }
-        .input-blanc { color: white !important; }
-		<link rel="manifest" href="manifest.json">
-    
+
+    <link rel="manifest" href="manifest.json">
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
@@ -24,7 +20,10 @@
     </script>
 
     <style>
-        :root { --sat: env(safe-area-inset-top); ...
+        :root { --sat: env(safe-area-inset-top); --sab: env(safe-area-inset-bottom); }
+        body { height: 100dvh; background-color: #8f8d91; }
+        .main-container { height: 100dvh; padding-top: var(--sat); padding-bottom: var(--sab); background-color: #8f8d91; }
+        .input-blanc { color: white !important; }
     </style>
 </head>
 <body class="text-white font-sans overflow-hidden select-none">
@@ -124,16 +123,12 @@
             const validerManche = () => {
                 const pts = inputPoints.map(p => parseInt(p) || 0);
                 const total = pts.reduce((a, b) => a + b, 0);
-                const beloteScore = belote !== null ? 20 : 0;
                 
-                // Validation stricte : 162, 172 (162+10 de der ou autre mix), ou 252 (capot+belote+der)
-                // Note : On accepte 162, 172 (si belote), ou 252.
                 if (![162, 172, 252].includes(total)) {
-                    annoncer(`Total de ${total} refusé. Le total doit être 162, 172 ou 252.`);
+                    annoncer(`Total de ${total} points refusé. Il faut 162, 172 ou 252.`);
                     return;
                 }
 
-                // Sauvegarde pour annulation
                 const nouvelHistorique = [...historique, { anciensScores: scores, ancienTour: tour, ancienDonneur: donneur }];
                 setHistorique(nouvelHistorique);
 
@@ -144,11 +139,11 @@
                     const maxScore = Math.max(...nouveauxScores);
                     const gagnantIdx = nouveauxScores.indexOf(maxScore);
                     const listeTriee = joueurs.map((nom, i) => ({ nom, score: nouveauxScores[i] }))
-                                               .sort((a, b) => b.score - a.score); // Décroissant
+                                               .sort((a, b) => b.score - a.score);
                     
-                    const annonceFinale = `Partie terminée ! Le gagnant de cette partie est ${joueurs[gagnantIdx]} avec ${maxScore} points. ` +
-                        `Ensuite, deuxième : ${listeTriee[1].nom} avec ${listeTriee[1].score} points, ` +
-                        `et troisième : ${listeTriee[2].nom} avec ${listeTriee[2].score} points.`;
+                    const annonceFinale = `Partie terminée ! Le gagnant est ${joueurs[gagnantIdx]} avec ${maxScore} points. ` +
+                        `Ensuite : ${listeTriee[1].nom} avec ${listeTriee[1].score} points, ` +
+                        `et enfin : ${listeTriee[2].nom} avec ${listeTriee[2].score} points.`;
 
                     setTimeout(() => {
                         annoncer(annonceFinale);
