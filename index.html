@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Belote Expert 3P</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --sat: env(safe-area-inset-top); --sab: env(safe-area-inset-bottom); }
+        body { height: 100dvh; background-color: #151515; }
+        .main-container { height: 100dvh; padding-top: var(--sat); padding-bottom: var(--sab); background-color: #8f8d91; }
+    </style>
+</head>
+<body class="text-white font-sans overflow-hidden select-none">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const Icone = ({ type, color }) => {
+            const symboles = { coeur: "♥", carreau: "♦", trefle: "♣", pique: "♠" };
+            return (
+                <span style={{ color: color }} className="text-3xl sm:text-4xl leading-none">
+                    {symboles[type]}
+                </span>
+            );
+        };
+
+        function App() {
+            const [joueurs, setJoueurs] = useState(() => JSON.parse(localStorage.getItem('b3_noms')) || ["Joueur 1", "Joueur 2", "Joueur 3"]);
+            const [scores, setScores] = useState(() => JSON.parse(localStorage.getItem('b3_scores')) || [0, 0, 0]);
+            const [tour, setTour] = useState(() => parseInt(localStorage.getItem('b3_tour')) || 1);
+            const [donneur, setDonneur] = useState(0);
+            const [atout, setAtout] = useState(null);
+            const [focusIndex, setFocusIndex] = useState(0);
+            const [inputPoints, setInputPoints] = useState(['', '', '']);
+            const [belote, setBelote] = useState(null);
+            const [modified, setModified] = useState([]);
+
+            const configJoueurs = [{ color: '#0080ff' }, { color: '#ffec19' }, { color: '#ef1046' }];
+            const symboles = [
+                { type: 'coeur', n: 'Cœur', c: '#ef4444' },
+                { type: 'carreau', n: 'Carreau', c: '#ef4444' },
+                { type: 'trefle', n: 'Trèfle', c: '#000000' },
+                { type: 'pique', n: 'Pique', c: '#000000' }
+            ];
+
+            useEffect(() => {
+                localStorage.setItem('b3_noms', JSON.stringify(joueurs));
+                localStorage.setItem('b3_scores', JSON.stringify(scores));
+                localStorage.setItem('b3_tour', tour.toString());
+            }, [joueurs, scores, tour]);
+
+            const annoncer = (t) => {
+                window.speechSynthesis.cancel();
+                const m = new SpeechSynthesisUtterance(t);
+                m.lang = 'fr-FR';
+                window.speechSynthesis.speak(m);
+            };
+
+            const toggleBelote = (i) => {
+                if (belote === i) {
+                    setBelote(null);
+                    annoncer("Belote annulée.");
+                } else {
+                    setBelote(i);
+                    annoncer(`Belote enregistrée pour ${joueurs[i]}.`);
+                }
+            };
+
+            const taperChiffre = (n) => {
+                let nouveaux = [...inputPoints];
+                let currentMods = [...modified];
+                if (n === 'DEL') {
+                    nouveaux[focusIndex] = '';
+                    currentMods = currentMods.filter(idx => idx !== focusIndex);
+                } else {
+                    const valFuture = nouveaux[focusIndex] + n;
+                    if (parseInt(valFuture) > 162) return;
+                    nouveaux[focusIndex] = valFuture;
+                    if (!currentMods.includes(focusIndex)) currentMods.push(focusIndex);
+                }
+                if (currentMods.length === 2) {
+                    const aRemplir = [0, 1, 2].find(idx => !currentMods.includes(idx));
+                    const totalSaisi = (parseInt(nouveaux[currentMods[0]]) || 0) + (parseInt(nouveaux[currentMods[1]]) || 0);
+                    const reste = 162 - totalSaisi;
+                    nouveaux[aRemplir] = reste >= 0 ? reste.toString() : "0";
+                } else if (currentMods.length === 3) {
+                    const idxAutre = currentMods.find(idx => idx !== focusIndex); 
+                    const idxAjuster = [0, 1, 2].find(idx => idx !== focusIndex && idx !== idxAutre);
+                    const totalSaisi = (parseInt(nouveaux[focusIndex]) || 0) + (parseInt(nouveaux[idxAutre]) || 0);
+                    const reste = 162 - totalSaisi;
+                    nouveaux[idxAjuster] = reste >= 0 ? reste.toString() : "0";
+                }
+                setInputPoints(nouveaux);
+                setModified(currentMods);
+            };
+
+            const validerManche = () => {
+                const pts = inputPoints.map(p => parseInt(p) || 0);
+                if (pts.reduce((a, b) => a + b, 0) !== 162) return;
+                const nouveauxScores = scores.map((s, i) => s + pts[i] + (belote === i ? 20 : 0));
+                setScores(nouveauxScores);
+                if (tour === 12) {
+                    const maxScore = Math.max(...nouveauxScores);
+                    const gagnantIdx = nouveauxScores.indexOf(maxScore);
+                    setTimeout(() => {
+                        annoncer(`Partie terminée ! Le gagnant est ${joueurs[gagnantIdx]}. Les scores finals sont : ${joueurs[0]} ${nouveauxScores[0]} points, ${joueurs[1]} ${nouveauxScores[1]} points, et ${joueurs[2]} ${nouveauxScores[2]} points.`);
+                        alert("Partie terminée !");
+                    }, 500);
+                } else {
+                    const suivant = (donneur + 1) % 3;
+                    const nouveauTour = tour + 1;
+                    setDonneur(suivant); setTour(nouveauTour);
+                    setInputPoints(['', '', '']); setBelote(null); setAtout(null); setModified([]);
+                    annoncer(nouveauTour === 12 ? "Dernier tour ! C'est au tour de " + joueurs[suivant] + " de donner." : "Tour " + nouveauTour + ". C'est au tour de " + joueurs[suivant] + " de donner.");
+                }
+            };
+
+            return (
+                <div className="main-container max-w-md mx-auto flex flex-col p-2 tracking-tight overflow-hidden">
+                    <div className="flex justify-between items-center px-2 mb-1 shrink-0">
+                        <span className="text-[10px] font-black bg-black/40 px-3 py-1 rounded-full uppercase text-white">
+                            {tour === 12 ? "Dernier tour" : `Tour ${tour} / 12`}
+                        </span>
+                        <button onClick={() => annoncer(`Scores : ${joueurs[0]} ${scores[0]}, ${joueurs[1]} ${scores[1]}, ${joueurs[2]} ${scores[2]}`)} className="text-xl drop-shadow">📢</button>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-1.5 mb-1.5 px-1 shrink-0">
+                        {symboles.map(item => (
+                            <button key={item.type} onClick={() => {setAtout(item.type); annoncer(`L'atout est : ${item.n}`)}}
+                                className={`h-10 sm:h-12 rounded-xl flex items-center justify-center transition-all border-2 ${atout === item.type ? 'bg-white border-black scale-105 shadow-xl' : 'bg-black/10 border-black/40 opacity-50'}`}>
+                                <Icone type={item.type} color={item.c} />
+                            </button>
+                        ))}
+                    </div>
+
+                    <main className="flex-1 flex flex-col gap-1.5 mb-1.5 overflow-hidden px-1">
+                        {joueurs.map((nom, i) => (
+                            <div key={i} onClick={() => setFocusIndex(i)} 
+                                style={{ borderColor: configJoueurs[i].color }}
+                                className={`flex-1 flex flex-col justify-center px-3 rounded-2xl border-2 transition-all ${focusIndex === i ? 'bg-black/40 shadow-md' : 'bg-black/20 opacity-80 border-opacity-30'}`}>
+                                <div className="flex justify-between items-center">
+                                    <div className="flex flex-col">
+                                        <button onClick={(e) => {e.stopPropagation(); setDonneur(i); annoncer(`Le donneur est ${joueurs[i]}`)}} 
+                                            className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full w-fit mb-0.5 ${donneur === i ? 'bg-white text-black' : 'bg-black/40 text-white'}`}>
+                                            Donneur {donneur === i && "🎴"}
+                                        </button>
+                                        <input className="bg-transparent font-black outline-none w-32 sm:w-40 text-xl sm:text-2xl uppercase" 
+                                            style={{ color: configJoueurs[i].color }} value={nom} 
+                                            onChange={(e) => {const n=[...joueurs]; n[i]=e.target.value; setJoueurs(n)}} />
+                                    </div>
+                                    <div className="text-4xl sm:text-5xl font-black tabular-nums drop-shadow-lg" style={{ color: configJoueurs[i].color }}>{scores[i]}</div>
+                                </div>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                    <div className={`text-xl font-black px-3 py-0.5 rounded-lg min-w-[70px] text-center border-2 ${focusIndex === i ? 'bg-white text-black border-white shadow-inner' : 'bg-black/40 text-white/40 border-transparent'}`}>
+                                        {inputPoints[i] || '0'}
+                                    </div>
+                                    <button onClick={(e) => {e.stopPropagation(); toggleBelote(i)}} 
+                                        style={{ backgroundColor: belote === i ? configJoueurs[i].color : 'transparent', borderColor: configJoueurs[i].color }}
+                                        className={`px-2 py-1 rounded-lg text-[8px] font-black border-2 transition-all ${belote === i ? 'text-black shadow-md' : 'text-white/40'}`}>BELOTE</button>
+                                </div>
+                            </div>
+                        ))}
+                    </main>
+
+                    <div className="bg-black/40 p-2 rounded-2xl border border-white/10 shrink-0 mx-1">
+                        <div className="grid grid-cols-5 gap-1.5 mb-1.5">
+                            {[1,2,3,4,5,6,7,8,9,0].map(n => (
+                                <button key={n} onClick={() => taperChiffre(n.toString())} 
+                                    className="bg-[#2d3436] h-10 sm:h-11 rounded-lg font-black text-xl shadow-md active:bg-white active:text-black transition-colors">{n}</button>
+                            ))}
+                        </div>
+                        <div className="flex gap-1.5">
+                            <button onClick={() => taperChiffre('DEL')} className="flex-1 bg-red-600 h-10 sm:h-11 rounded-lg font-bold text-[10px] uppercase shadow-md active:bg-red-800">Effacer</button>
+                            <button onClick={validerManche} className="flex-[2] bg-white text-gray-800 h-10 sm:h-11 rounded-lg font-black text-[10px] uppercase tracking-widest shadow-md active:bg-gray-200">Valider</button>
+                        </div>
+                    </div>
+
+                    <button onClick={() => {if(confirm('Nouvelle partie ?')) { setScores([0,0,0]); setTour(1); setInputPoints(['','','']); setAtout(null); setModified([]); }}}
+                        className="text-white/40 text-[8px] font-bold text-center py-1 uppercase shrink-0">Nouvelle Partie</button>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
